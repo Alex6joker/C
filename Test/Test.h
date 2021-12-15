@@ -1,0 +1,1 @@
+int stringEqual(char *, char *);
