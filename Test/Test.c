@@ -90,35 +90,54 @@ int main(void)
     fclose(cpuInfo);
 
     // Get traffic data (I/O)
+
     FILE *networkInfo = fopen("/proc/net/dev", "rb");
     linePtr = 0;
     size = 0;
+    int interval = 5;
+    int interation;
+    int totalIterationsCount = 2;
     int receiveDataPos = 0;
     int transmittedDataPos = 8;
-    float receivedDataSum = 0;
-    float transmittedDataSum = 0;
+    float* receivedDataSum = malloc(sizeof(float) * totalIterationsCount);
+    float* transmittedDataSum = malloc(sizeof(float) * totalIterationsCount);
 
-    while (getline(&linePtr, &size, networkInfo) != -1)
+    for(interation = 0; interation < totalIterationsCount; interation++)
     {
-        char *subStr = strstr(linePtr, ":");
-        if (subStr != NULL)
+        fseek(networkInfo, 0, SEEK_SET);
+        while (getline(&linePtr, &size, networkInfo) != -1)
         {
-            char *data = strtok(subStr, " ");
-            for (int dataPosition = 0; data != NULL; dataPosition++)
+            // Only no errors/network interfaces lines have ':'
+            char *subStr = strstr(linePtr, ":");
+            if (subStr != NULL)
             {
-                data = strtok(NULL, " ");
-                if (dataPosition == receiveDataPos)
+                char *data = strtok(subStr, " ");
+                for (int dataPosition = 0; data != NULL; dataPosition++)
                 {
-                    receivedDataSum += atof(data);
-                }
-                else if (dataPosition == transmittedDataPos)
-                {
-                    transmittedDataSum += atof(data);
+                    data = strtok(NULL, " ");
+                    if (dataPosition == receiveDataPos)
+                    {
+                        receivedDataSum[interation] += atof(data);
+                    }
+                    else if (dataPosition == transmittedDataPos)
+                    {
+                        transmittedDataSum[interation] += atof(data);
+                        break;
+                    }
                 }
             }
         }
+        if(interation != totalIterationsCount - 1)
+            sleep(interval);
     }
-    printf("traffic data: in: %.2f Kb, out: %.2f Kb \n", receivedDataSum / 1024, transmittedDataSum / 1024);
+
+    printf("traffic data: in: %.2f Kb/s, out: %.2f Kb/s \n",
+        (receivedDataSum[1] - receivedDataSum[0]) / (interval * 1024),
+        (transmittedDataSum[1] - transmittedDataSum[0]) / (interval * 1024));
+
+    free(receivedDataSum);
+    free(transmittedDataSum);
+
     fclose(networkInfo);
 
     // Get memory info
